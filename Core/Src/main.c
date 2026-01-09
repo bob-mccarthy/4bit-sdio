@@ -86,6 +86,14 @@ volatile bool second_half_filled = false;
 
 uint8_t spi_buffer[SPI_BUFFER_SIZE];
 
+#define NUM_ERRORS 100
+
+volatile uint32_t curr_received_num = 0;
+uint32_t num_errors = 0;
+uint32_t errors[NUM_ERRORS];
+uint32_t expected_num[NUM_ERRORS];
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -210,8 +218,17 @@ int main(void)
 
 	if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin)){
 		HAL_GPIO_WritePin(GPIOB, LD1_Pin, GPIO_PIN_SET);
+		num_errors = 0;
+		curr_received_num = 0;
+		printf("running the spi transmission");
 //		SPI_SDIO_Test(SPI_BUFFER_SIZE * 256);
 		SPI_SDIO_Test(SPI_BUFFER_SIZE * 256);
+		printf("there were %lu errors over %lu number of bytes:\n", num_errors, curr_received_num);
+		int iteration_num = num_errors > NUM_ERRORS ? NUM_ERRORS: num_errors;
+		for (int i = 0; i < iteration_num; i++){
+			printf("expected num: %lu, actual value: %lu\n", expected_num[i], errors[i]);
+		}
+
 //		SDIO_SDCard_Test();
 		HAL_Delay(1000);
 	}
@@ -620,16 +637,42 @@ static void SPI_SDIO_Test(uint32_t num_bytes){
 	uint32_t start_time = HAL_GetTick();
 	while ((HAL_GetTick() - start_time) < 15000 && (written_bytes < num_bytes - 1)){
 		if(first_half_filled){
-//			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET);
-			f_write(&Fil, &spi_buffer, HALF_SPI_BUFFER_SIZE , &WWC);
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET);
+//			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET)
+			for (int i = 0; i < HALF_SPI_BUFFER_SIZE; i += 4){
+				uint32_t curr_num = spi_buffer[i] | spi_buffer[i+1] << 8 | spi_buffer[i+2] << 16 | spi_buffer[i+3] << 24;
+				if ( curr_num != curr_received_num){
+					if(num_errors < NUM_ERRORS){
+						errors[num_errors] = curr_num;
+						expected_num[num_errors] = curr_received_num;
+//						curr_received_num = curr_num;
+					}
+					num_errors++;
+				}
+				curr_received_num++;
+			}
+//			f_write(&Fil, &spi_buffer, HALF_SPI_BUFFER_SIZE , &WWC);
+//			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET);
 			written_bytes += HALF_SPI_BUFFER_SIZE;
 			first_half_filled = false;
 		}
 		if(second_half_filled){
+			for (int i = HALF_SPI_BUFFER_SIZE; i < SPI_BUFFER_SIZE; i += 4){
+				uint32_t curr_num = spi_buffer[i] | spi_buffer[i+1] << 8 | spi_buffer[i+2] << 16 | spi_buffer[i+3] << 24;
+				if ( curr_num != curr_received_num){
+					if(num_errors < NUM_ERRORS){
+						errors[num_errors] = curr_num;
+						expected_num[num_errors] = curr_received_num;
+//						curr_received_num = curr_num;
+					}
+
+					num_errors++;
+
+				}
+				curr_received_num++;
+			}
 //			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET);
-			f_write(&Fil, &spi_buffer[HALF_SPI_BUFFER_SIZE], HALF_SPI_BUFFER_SIZE , &WWC);
-			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET);
+//			f_write(&Fil, &spi_buffer[HALF_SPI_BUFFER_SIZE], HALF_SPI_BUFFER_SIZE , &WWC);
+//			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET);
 			written_bytes += HALF_SPI_BUFFER_SIZE;
 			second_half_filled = false;
 		}
