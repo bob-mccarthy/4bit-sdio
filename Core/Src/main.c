@@ -90,8 +90,8 @@ uint8_t spi_buffer[SPI_BUFFER_SIZE];
 
 volatile uint32_t curr_received_num = 0;
 uint32_t num_errors = 0;
-uint32_t errors[NUM_ERRORS];
-uint32_t expected_num[NUM_ERRORS];
+uint8_t errors[NUM_ERRORS];
+uint8_t expected_num[NUM_ERRORS];
 
 
 /* USER CODE END PFP */
@@ -160,52 +160,6 @@ int main(void)
   for(int i = 0; i < SPI_BUFFER_SIZE; i++){
 	  spi_buffer[i] = i % 256;
   }
-//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-//  HAL_SPI_Transmit(&hspi1, (uint8_t *)&start_code, 1, 100);
-//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-//  uint32_t num_bytes = OUTPUT_BUFFER_SIZE;
-//  uint8_t ackByte = 0;
-//  while (ackByte != 67){
-//	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-//	HAL_SPI_Transmit(&hspi1, (uint8_t *)&start_code, 1, 100);
-//	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-//	HAL_Delay(10);
-//	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-//	HAL_SPI_Receive(&hspi1, (uint8_t *)&ackByte, 1, 100);
-//	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-//	HAL_Delay(10);
-//  }
-//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-//  HAL_SPI_Transmit(&hspi1, (uint8_t *)&num_bytes, 4, 100);
-//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-//  HAL_Delay(5);
-//
-//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-//  HAL_SPI_Receive(&hspi1, (uint8_t *)buffer, num_bytes, 4000);
-//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-
-//  printf("finished SPI Transmit\n");
-//  UINT WWC;
-//  FATFS FatFs;
-//  FIL Fil;
-//  FRESULT FR_Status;
-//  FR_Status = f_mount(&FatFs, SDPath, 1);
-//  FR_Status = f_open(&Fil, "test.bin", FA_WRITE | FA_READ | FA_CREATE_ALWAYS);
-//  if(FR_Status != FR_OK)
-//  {
-//	printf("Error! While Creating/Opening A New Text File, Error Code: (%i)\r\n", FR_Status);
-//  }
-//  else{
-//	  f_write(&Fil, buffer, num_bytes, &WWC);
-//	  f_close(&Fil);
-//  }
-//  FR_Status = f_mount(NULL, "", 0);
-//  if (FR_Status != FR_OK)
-//  {
-//	printf("\r\nError! While Un-mounting SD Card, Error Code: (%i)\r\n", FR_Status);
-//  } else{
-//	printf("\r\nSD Card Un-mounted Successfully! \r\n");
-//  }
 
 
   /* USER CODE END 2 */
@@ -222,11 +176,11 @@ int main(void)
 		curr_received_num = 0;
 		printf("running the spi transmission");
 //		SPI_SDIO_Test(SPI_BUFFER_SIZE * 256);
-		SPI_SDIO_Test(SPI_BUFFER_SIZE * 256);
+		SPI_SDIO_Test(SPI_BUFFER_SIZE * 1000);
 		printf("there were %lu errors over %lu number of bytes:\n", num_errors, curr_received_num);
 		int iteration_num = num_errors > NUM_ERRORS ? NUM_ERRORS: num_errors;
 		for (int i = 0; i < iteration_num; i++){
-			printf("expected num: %lu, actual value: %lu\n", expected_num[i], errors[i]);
+			printf("expected num: %u, actual value: %u\n", expected_num[i], errors[i]);
 		}
 
 //		SDIO_SDCard_Test();
@@ -607,13 +561,13 @@ static void SPI_SDIO_Test(uint32_t num_bytes){
 	uint8_t ackByte = 0;
 	while (ackByte != 67){
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-		HAL_SPI_Transmit(&hspi1, (uint8_t *)&start_code, 1, 100);
+		HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&start_code,(uint8_t *)&ackByte, 1, 100);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
 		HAL_Delay(10);
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-		HAL_SPI_Receive(&hspi1, (uint8_t *)&ackByte, 1, 100);
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-		HAL_Delay(10);
+//		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+//		HAL_SPI_Receive(&hspi1,  1, 100);
+//		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+//		HAL_Delay(10);
 	}
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 	HAL_SPI_Transmit(&hspi1, (uint8_t *)&num_bytes, 4, 100);
@@ -638,12 +592,12 @@ static void SPI_SDIO_Test(uint32_t num_bytes){
 	while ((HAL_GetTick() - start_time) < 15000 && (written_bytes < num_bytes - 1)){
 		if(first_half_filled){
 //			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET)
-			for (int i = 0; i < HALF_SPI_BUFFER_SIZE; i += 4){
-				uint32_t curr_num = spi_buffer[i] | spi_buffer[i+1] << 8 | spi_buffer[i+2] << 16 | spi_buffer[i+3] << 24;
-				if ( curr_num != curr_received_num){
+			for (int i = 0; i < HALF_SPI_BUFFER_SIZE; i += 1){
+//				uint32_t curr_num = spi_buffer[i] | spi_buffer[i+1] << 8 | spi_buffer[i+2] << 16 | spi_buffer[i+3] << 24;
+				if ( spi_buffer[i] != 0x35){
 					if(num_errors < NUM_ERRORS){
-						errors[num_errors] = curr_num;
-						expected_num[num_errors] = curr_received_num;
+						errors[num_errors] = spi_buffer[i];
+						expected_num[num_errors] = 0x35;
 //						curr_received_num = curr_num;
 					}
 					num_errors++;
@@ -657,16 +611,13 @@ static void SPI_SDIO_Test(uint32_t num_bytes){
 		}
 		if(second_half_filled){
 			for (int i = HALF_SPI_BUFFER_SIZE; i < SPI_BUFFER_SIZE; i += 4){
-				uint32_t curr_num = spi_buffer[i] | spi_buffer[i+1] << 8 | spi_buffer[i+2] << 16 | spi_buffer[i+3] << 24;
-				if ( curr_num != curr_received_num){
+				if ( spi_buffer[i] != 0x35){
 					if(num_errors < NUM_ERRORS){
-						errors[num_errors] = curr_num;
-						expected_num[num_errors] = curr_received_num;
+						errors[num_errors] = spi_buffer[i];
+						expected_num[num_errors] = 0x35;
 //						curr_received_num = curr_num;
 					}
-
 					num_errors++;
-
 				}
 				curr_received_num++;
 			}
