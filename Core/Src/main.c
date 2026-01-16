@@ -92,6 +92,7 @@ volatile uint32_t curr_received_num = 0;
 uint32_t num_errors = 0;
 uint8_t errors[NUM_ERRORS];
 uint8_t expected_num[NUM_ERRORS];
+uint32_t indices[NUM_ERRORS];
 
 
 /* USER CODE END PFP */
@@ -176,11 +177,11 @@ int main(void)
 		curr_received_num = 0;
 		printf("running the spi transmission");
 //		SPI_SDIO_Test(SPI_BUFFER_SIZE * 256);
-		SPI_SDIO_Test(SPI_BUFFER_SIZE * 1000);
+		SPI_SDIO_Test(SPI_BUFFER_SIZE * 100);
 		printf("there were %lu errors over %lu number of bytes:\n", num_errors, curr_received_num);
 		int iteration_num = num_errors > NUM_ERRORS ? NUM_ERRORS: num_errors;
 		for (int i = 0; i < iteration_num; i++){
-			printf("expected num: %u, actual value: %u\n", expected_num[i], errors[i]);
+			printf("expected num: %u, actual value: %u, index %lu\n", expected_num[i], errors[i], indices[i]);
 		}
 
 //		SDIO_SDCard_Test();
@@ -593,12 +594,11 @@ static void SPI_SDIO_Test(uint32_t num_bytes){
 		if(first_half_filled){
 //			HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET)
 			for (int i = 0; i < HALF_SPI_BUFFER_SIZE; i += 1){
-//				uint32_t curr_num = spi_buffer[i] | spi_buffer[i+1] << 8 | spi_buffer[i+2] << 16 | spi_buffer[i+3] << 24;
-				if ( spi_buffer[i] != 0x35){
+				if (spi_buffer[i] != curr_received_num % 256){
 					if(num_errors < NUM_ERRORS){
 						errors[num_errors] = spi_buffer[i];
-						expected_num[num_errors] = 0x35;
-//						curr_received_num = curr_num;
+						expected_num[num_errors] = curr_received_num%256;
+						indices[num_errors] = curr_received_num;
 					}
 					num_errors++;
 				}
@@ -610,12 +610,12 @@ static void SPI_SDIO_Test(uint32_t num_bytes){
 			first_half_filled = false;
 		}
 		if(second_half_filled){
-			for (int i = HALF_SPI_BUFFER_SIZE; i < SPI_BUFFER_SIZE; i += 4){
-				if ( spi_buffer[i] != 0x35){
+			for (int i = HALF_SPI_BUFFER_SIZE; i < SPI_BUFFER_SIZE; i += 1){
+				if ( spi_buffer[i] != curr_received_num % 256){
 					if(num_errors < NUM_ERRORS){
 						errors[num_errors] = spi_buffer[i];
-						expected_num[num_errors] = 0x35;
-//						curr_received_num = curr_num;
+						expected_num[num_errors] = curr_received_num%256;
+						indices[num_errors] = curr_received_num;
 					}
 					num_errors++;
 				}
